@@ -2,7 +2,7 @@ import jwt from "jsonwebtoken"
 import User from "../models/userModel.js"
 
 const userAuth = async(req , res , next)=>{
-    const {token} = req.cookie
+    const {token} = req.cookies
 
     if(!token){
         return res.json({success : false , message : "Not authorised , login again"})

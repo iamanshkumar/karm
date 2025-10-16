@@ -1,6 +1,6 @@
 import mongoose from "mongoose";
-import Board from "./boardModel";
-import Card from "./cardModel";
+import Board from "./boardModel.js";
+import Card from "./cardModel.js";
 
 const listSchema = new mongoose.Schema({
     title : {
@@ -8,8 +8,8 @@ const listSchema = new mongoose.Schema({
         required : true,
     },
     boardId : {
-        type : Schema.type.ObjectId,
-        ref : Board,
+        type : mongoose.Schema.Types.ObjectId,
+        ref : "Board",
         required : true
     },
     position : {
@@ -17,10 +17,12 @@ const listSchema = new mongoose.Schema({
         required : true
     },
     cards : [{
-        type : Schema.type.ObjectId,
-        ref : Card
+        type : mongoose.Schema.Types.ObjectId,
+        ref : "Card"
     }],
-    timestamps : true
+},
+{
+    timestamps : true,
 })
 
 const List = mongoose.model("List",listSchema)

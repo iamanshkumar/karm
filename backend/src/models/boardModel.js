@@ -1,6 +1,6 @@
 import mongoose, { Schema } from "mongoose"
-import User from "./userModel"
-import List from "./listModel"
+import User from "./userModel.js"
+import List from "./listModel.js"
 
 const boardSchema = new mongoose.Schema({
     title : {
@@ -9,16 +9,17 @@ const boardSchema = new mongoose.Schema({
     },
     description : String,
     createdBy : {
-        type : Schema.type.ObjectId,
-        ref : User
+        type : mongoose.Schema.Types.ObjectId,
+        ref : "User"
     },
-    timpestamps : true,
     lists : [
         {
-            type : Schema.type.ObjectId,
-            ref : List
+            type : mongoose.Schema.Types.ObjectId,
+            ref : "List"
         }
     ]
+},{
+    timestamps : true
 })
 
 const Board = mongoose.model("Board",boardSchema)

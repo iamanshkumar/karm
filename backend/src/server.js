@@ -6,6 +6,7 @@ import jwt from "jsonwebtoken"
 import authRouter from "./routes/authRoutes.js"
 import cookieParser from "cookie-parser"
 import cors from "cors"
+import boardRouter from "./routes/boardRoutes.js"
 
 dotenv.config()
 const app = express()
@@ -22,6 +23,7 @@ app.get("/",(req,res)=>{
 })
 
 app.use("/api/auth/",authRouter)
+app.use("/api/board/",boardRouter)
 
 app.listen(port,()=>{
     console.log(`Server running on ${port}`)

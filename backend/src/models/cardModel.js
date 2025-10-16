@@ -1,6 +1,6 @@
 import mongoose from "mongoose";
-import List from "./listModel";
-import User from "./userModel";
+import List from "./listModel.js";
+import User from "./userModel.js";
 
 const cardSchema = new mongoose.Schema({
     title : {
@@ -9,18 +9,20 @@ const cardSchema = new mongoose.Schema({
     },
     description : String,
     listID : {
-        type : Schema.type.ObjectId,
-        ref : List
+        type : mongoose.Schema.Types.ObjectId,
+        ref : "List"
     },
     createdBy : {
-        type : Schema.type.ObjectId,
-        red : User
+        type : mongoose.Schema.Types.ObjectId,
+        red : "User"
     },
     position : {
         type : Number,
         required : true
     },
-    timestamp : true
+},
+{
+    timestamps : true
 })
 
 const Card = mongoose.model("Card",cardSchema)

@@ -9,6 +9,7 @@ import cors from "cors"
 import boardRouter from "./routes/boardRoutes.js"
 import listRouter from "./routes/listRoutes.js"
 import cardRouter from "./routes/cardRoutes.js"
+import userRouter from "./routes/userRoutes.js"
 
 dotenv.config()
 const app = express()
@@ -16,6 +17,11 @@ const app = express()
 const port = process.env.PORT || 3000
 
 connectDB()
+
+app.use(cors({
+    origin : "http://localhost:5173",
+    credentials : true
+}))
 
 app.use(express.json())
 app.use(cookieParser())
@@ -28,6 +34,7 @@ app.use("/api/auth/",authRouter)
 app.use("/api/board/",boardRouter)
 app.use("/api/lists/",listRouter)
 app.use("/api/cards/",cardRouter)
+app.use("/api/user",userRouter)
 
 app.listen(port,()=>{
     console.log(`Server running on ${port}`)

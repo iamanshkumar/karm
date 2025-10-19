@@ -1,10 +1,12 @@
 import express from "express"
-import { signup } from "../controllers/authController.js"
+import { isAuthenticated, signup } from "../controllers/authController.js"
 import { login } from "../controllers/authController.js"
+import userAuth from "../middleware/userAuth.js"
 
 const authRouter = express.Router()
 
 authRouter.post("/signup", signup)
 authRouter.post("/login", login)
+authRouter.get("/is-auth",userAuth,isAuthenticated)
 
 export default authRouter

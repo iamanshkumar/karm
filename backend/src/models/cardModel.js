@@ -14,7 +14,7 @@ const cardSchema = new mongoose.Schema({
     },
     createdBy : {
         type : mongoose.Schema.Types.ObjectId,
-        red : "User"
+        ref : "User"
     },
     position : {
         type : Number,

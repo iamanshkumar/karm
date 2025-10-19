@@ -8,6 +8,7 @@ import cookieParser from "cookie-parser"
 import cors from "cors"
 import boardRouter from "./routes/boardRoutes.js"
 import listRouter from "./routes/listRoutes.js"
+import cardRouter from "./routes/cardRoutes.js"
 
 dotenv.config()
 const app = express()
@@ -26,6 +27,7 @@ app.get("/",(req,res)=>{
 app.use("/api/auth/",authRouter)
 app.use("/api/board/",boardRouter)
 app.use("/api/lists/",listRouter)
+app.use("/api/cards/",cardRouter)
 
 app.listen(port,()=>{
     console.log(`Server running on ${port}`)

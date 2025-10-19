@@ -25,7 +25,7 @@ export const createList = async (req,res)=>{
         const list = new List({
             title,
             boardId,
-            card : [],
+            cards : [],
             position : board.lists.length
         })
 
@@ -115,9 +115,9 @@ export const deleteList = async (req,res)=>{
             return res.json({success : false ,message : "You are not authorised"})
         }
 
-        await Board.findByIdAndUpdate(list.boardId , {$pull : {list : id}})
+        await Board.findByIdAndUpdate(list.boardId , {$pull : {lists : id}})
 
-        await Card.deleteMany({listId : id})
+        await Card.deleteMany({listID : id})
 
         await List.findByIdAndDelete(id)
 

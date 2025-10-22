@@ -72,7 +72,7 @@ const Login = () => {
             value = {password}
           />
 
-          <button type ="submit" className='bg-black text-white rounded py-2'>{state}</button>
+          <button type ="submit" className='bg-black text-white rounded py-2 cursor-pointer'>{state}</button>
           </form>
 
           {state === "Sign Up" ? (

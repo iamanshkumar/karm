@@ -1,8 +1,12 @@
 import React from 'react'
+import Navbar from '../components/Navbar'
 
 const Boards = () => {
   return (
-    <div>Boards</div>
+    <div>
+      <Navbar></Navbar>
+      Board
+    </div>
   )
 }
 

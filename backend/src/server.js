@@ -31,7 +31,7 @@ app.get("/",(req,res)=>{
 })
 
 app.use("/api/auth/",authRouter)
-app.use("/api/board/",boardRouter)
+app.use("/api/boards/",boardRouter)
 app.use("/api/lists/",listRouter)
 app.use("/api/cards/",cardRouter)
 app.use("/api/user",userRouter)

@@ -137,7 +137,7 @@ const Boards = () => {
                   key={board._id}
                   onMouseEnter={() => setHoveredCard(board._id)}
                   onMouseLeave={() => setHoveredCard(null)}
-                  onClick={() => navigate(`/board/${board._id}`)}
+                  onClick={() => navigate(`/boards/${board._id}`)}
                   className="group relative bg-white rounded-xl border border-gray-200/70 shadow-sm hover:shadow-md hover:-translate-y-[2px] transition-all duration-200 cursor-pointer p-6"
                 >
                   <button
@@ -227,7 +227,7 @@ const Boards = () => {
               {otherBoards.map((board) => (
                 <div
                   key={board._id}
-                  onClick={() => navigate(`/board/${board._id}`)}
+                  onClick={() => navigate(`/boards/${board._id}`)}
                   className="bg-white rounded-xl border border-gray-200/70 shadow-sm hover:shadow-md hover:-translate-y-[2px] transition-all duration-200 cursor-pointer p-6"
                 >
                   <h3 className="text-lg font-semibold text-gray-900 mb-2 line-clamp-1">

@@ -78,6 +78,9 @@ const Boards = () => {
 
   useEffect(() => {
     fetchBoards();
+    const handler = ()=>fetchBoards()
+    window.addEventListener("boardsUpdated" , handler)
+    return () => window.removeEventListener("boardsUpdated", handler);
   }, []);
 
   // Split boards into mine and others

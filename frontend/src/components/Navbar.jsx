@@ -46,8 +46,10 @@ const Navbar = ({ onCreateBoard }) => {
   return (
     <nav className='sticky top-0 z-40 backdrop-blur-sm bg-white/90 border-b border-gray-200/70'>
         <div className='max-w-7xl mx-auto px-6 py-4 flex justify-between items-center'>
-            <div className='flex items-center gap-3'>
-                <h1 className='text-xl font-semibold tracking-tight text-gray-900'>Karm</h1>
+            <div className='flex items-center gap-3 cursor-pointer'>
+                <h1 onClick={()=>{
+                    navigate('/boards')
+                }} className='text-xl font-semibold tracking-tight text-gray-900'>Karm</h1>
             </div>
 
             

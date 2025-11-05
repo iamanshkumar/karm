@@ -25,7 +25,7 @@ export const createBoard = async (req,res)=>{
 
 export const getBoards = async (req,res)=>{
     try{
-        const allBoards = await Board.find().populate('createdBy','username')
+        const allBoards = await Board.find().populate('createdBy','username').populate("lists")
         return res.json({success : true , boards : allBoards})
     }catch(error){
         return res.json({success : false , message : error.message})

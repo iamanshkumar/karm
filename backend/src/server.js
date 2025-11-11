@@ -32,12 +32,33 @@ app.get("/",(req,res)=>{
     res.send("Hello world")
 })
 
-app.use("/api/auth/",authRouter)
-app.use("/api/boards/",boardRouter)
-app.use("/api/lists/",listRouter)
-app.use("/api/cards/",cardRouter)
-app.use("/api/user",userRouter)
+// Add logging for debugging
+app.use("/api/auth/", (req, res, next) => {
+    console.log(`Auth route accessed: ${req.method} ${req.originalUrl}`)
+    next()
+}, authRouter)
+
+app.use("/api/boards/", (req, res, next) => {
+    console.log(`Boards route accessed: ${req.method} ${req.originalUrl}`)
+    next()
+}, boardRouter)
+
+app.use("/api/lists/", (req, res, next) => {
+    console.log(`Lists route accessed: ${req.method} ${req.originalUrl}`)
+    next()
+}, listRouter)
+
+app.use("/api/cards/", (req, res, next) => {
+    console.log(`Cards route accessed: ${req.method} ${req.originalUrl}`)
+    next()
+}, cardRouter)
+
+app.use("/api/user", (req, res, next) => {
+    console.log(`User route accessed: ${req.method} ${req.originalUrl}`)
+    next()
+}, userRouter)
 
 app.listen(port,()=>{
     console.log(`Server running on ${port}`)
+    console.log(`Frontend URL: ${process.env.FRONTEND_URL}`)
 })

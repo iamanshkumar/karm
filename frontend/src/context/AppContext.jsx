@@ -17,12 +17,14 @@ export const AppContextProvider = (props) => {
 
     const getAuthState = async()=>{
         try{
+            console.log('Checking auth state with URL:', backendUrl + "/api/auth/is-auth")
             const {data} = await axios.get(backendUrl + "/api/auth/is-auth")
             if(data.success){
                 setIsLoggedIn(true)
                 await getUserData()
             }
         }catch(error){
+            console.error('Auth check failed:', error.response || error.message)
             toast.error(error.message)
         }finally{
             setLoading(false)
@@ -31,9 +33,11 @@ export const AppContextProvider = (props) => {
 
     const getUserData = async()=>{
         try{
+            console.log('Fetching user data with URL:', backendUrl + "/api/user/data")
             const {data} = await axios.get(backendUrl + "/api/user/data")
             data.success ? setUser(data.UserData) : toast.error(data.message)
         }catch(error){
+            console.error('User data fetch failed:', error.response || error.message)
             toast.error(error.message)
         }
     }

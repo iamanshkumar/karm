@@ -1,13 +1,13 @@
 import React , {useState , useEffect} from 'react'
 import axios from "axios"
 import {toast} from "react-toastify"
-import { createContext } from 'react'
+import { createContext , useContext } from 'react'
 
 export const AppContext = createContext()
 
 export const AppContextProvider = (props) => {
 
-    const backendUrl = "http://localhost:3000"
+    const backendUrl = import.meta.env.BACKEND_URL || "http://localhost:3000"
 
     const [isLoggedIn, setIsLoggedIn] = useState(false)
     const [user,setUser] = useState(null)

@@ -33,7 +33,7 @@ export const createCardById = async(req,res)=>{
         await card.save();
         list.cards.push(card._id)
         await list.save()
-        return res.json({success : true , message : "Card created successfully"})
+        return res.json({success : true , message : "Card created successfully" , card})
 
     }catch(error){
         return res.json({success : false , message : error.message})
@@ -124,3 +124,28 @@ export const deleteCard = async(req,res)=>{
         return res.json({success : false , message : error.message})
     }
 }
+
+// Expected moveCard controller
+export const moveCard = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { listID, position } = req.body;
+    
+    const card = await Card.findByIdAndUpdate(
+      id,
+      { 
+        listID: listID,  // Update the list
+        position: position // Update the position
+      },
+      { new: true }
+    ).populate('createdBy', 'name email');
+    
+    if (!card) {
+      return res.json({ success: false, message: "Card not found" });
+    }
+    
+    res.json({ success: true, card });
+  } catch (error) {
+    res.json({ success: false, message: error.message });
+  }
+};

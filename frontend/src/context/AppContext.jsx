@@ -7,7 +7,7 @@ export const AppContext = createContext()
 
 export const AppContextProvider = (props) => {
 
-    const backendUrl = import.meta.env.BACKEND_URL || "http://localhost:3000"
+    const backendUrl = import.meta.env.VITE_BACKEND_URL || "http://localhost:3000"
 
     const [isLoggedIn, setIsLoggedIn] = useState(false)
     const [user,setUser] = useState(null)

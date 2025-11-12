@@ -16,31 +16,27 @@ const Login = () => {
   const onSubmitHandler = async (e) => {
     e.preventDefault();
     try {
-      axios.defaults.withCredentials = true;
-
       let response;
       if (state === "Sign Up") {
-        response = await axios.post(`${backendUrl}/api/auth/signup`, {
-          username,
-          email,
-          password,
-        });
+        response = await axios.post(
+          `${backendUrl}/api/auth/signup`,
+          { username, email, password },
+          { withCredentials: true }
+        );
       } else {
-        response = await axios.post(`${backendUrl}/api/auth/login`, {
-          email,
-          password,
-        });
+        response = await axios.post(
+          `${backendUrl}/api/auth/login`,
+          { email, password },
+          { withCredentials: true }
+        );
       }
 
       const { data } = response;
-
       if (data.success) {
-        // Extract token from response if available
-        if (data.token) {
-          setAuthToken(data.token);
-        }
+        if (data.token) setAuthToken(data.token);
         setIsLoggedIn(true);
-        getUserData();
+        await getUserData();
+        toast.success("Welcome!");
         navigate("/boards");
       } else {
         toast.error(data.message);
@@ -52,7 +48,7 @@ const Login = () => {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-indigo-100 via-white to-indigo-50 p-6">
-      <div className="w-full max-w-md backdrop-blur-xl bg-white/60 shadow-xl rounded-2xl p-8 border border-white/30 transition-all duration-300 hover:shadow-2xl">
+      <div className="w-full max-w-md backdrop-blur-xl bg-white/70 shadow-xl rounded-2xl p-8 border border-white/30">
         <h2 className="text-3xl font-semibold text-center text-gray-800 mb-6">
           {state === "Sign Up" ? "Create your account" : "Welcome back"}
         </h2>
@@ -62,31 +58,28 @@ const Login = () => {
             <input
               type="text"
               placeholder="Username"
-              className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:border-transparent transition-all"
+              className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-indigo-400"
               onChange={(e) => setUsername(e.target.value)}
               value={username}
             />
           )}
-
           <input
             type="email"
             placeholder="Email"
-            className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:border-transparent transition-all"
+            className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-indigo-400"
             onChange={(e) => setEmail(e.target.value)}
             value={email}
           />
-
           <input
             type="password"
             placeholder="Password"
-            className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:border-transparent transition-all"
+            className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-indigo-400"
             onChange={(e) => setPassword(e.target.value)}
             value={password}
           />
-
           <button
             type="submit"
-            className="w-full py-2.5 bg-indigo-600 text-white font-medium rounded-lg hover:bg-indigo-700 transition-all shadow-sm hover:shadow-md"
+            className="w-full py-2.5 bg-indigo-600 text-white font-medium rounded-lg hover:bg-indigo-700 transition"
           >
             {state}
           </button>

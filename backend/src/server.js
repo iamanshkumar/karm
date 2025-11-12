@@ -1,50 +1,50 @@
-import express from "express"
-import dotenv from "dotenv"
-import connectDB from "./config/db.js"
-import bcrypt from "bcryptjs"
-import jwt from "jsonwebtoken"
-import authRouter from "./routes/authRoutes.js"
-import cookieParser from "cookie-parser"
-import cors from "cors"
-import boardRouter from "./routes/boardRoutes.js"
-import listRouter from "./routes/listRoutes.js"
-import cardRouter from "./routes/cardRoutes.js"
-import userRouter from "./routes/userRoutes.js"
+import express from "express";
+import dotenv from "dotenv";
+import connectDB from "./config/db.js";
+import cookieParser from "cookie-parser";
+import cors from "cors";
 
-dotenv.config()
-const app = express()
+import authRouter from "./routes/authRoutes.js";
+import boardRouter from "./routes/boardRoutes.js";
+import listRouter from "./routes/listRoutes.js";
+import cardRouter from "./routes/cardRoutes.js";
+import userRouter from "./routes/userRoutes.js";
 
-const port = process.env.PORT || 3000
+dotenv.config();
+const app = express();
+const port = process.env.PORT || 3000;
 
-connectDB()
+connectDB();
 
-// Enhanced CORS configuration for better cross-browser compatibility
+// ✅ Secure, Safari-compatible CORS config
 const corsOptions = {
-    origin: process.env.NODE_ENV === 'production' 
-      ? process.env.FRONTEND_URL 
+  origin:
+    process.env.NODE_ENV === "production"
+      ? process.env.FRONTEND_URL
       : "http://localhost:5173",
-    credentials: true,
-    optionsSuccessStatus: 200,
-    allowedHeaders: ['Content-Type', 'Authorization'],
-    exposedHeaders: ['Authorization']
-}
+  credentials: true, // ✅ Allow cookies
+  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+  allowedHeaders: ["Content-Type", "Authorization"],
+};
 
-app.use(cors(corsOptions))
+app.use(cors(corsOptions));
+app.use(express.json());
+app.use(cookieParser());
 
-app.use(express.json())
-app.use(cookieParser())
+// ✅ Health check route
+app.get("/", (req, res) => {
+  res.send("✅ FlowBoard API is running fine");
+});
 
-app.get("/",(req,res)=>{
-    res.send("Hello world")
-})
+// ✅ API routes
+app.use("/api/auth", authRouter);
+app.use("/api/boards", boardRouter);
+app.use("/api/lists", listRouter);
+app.use("/api/cards", cardRouter);
+app.use("/api/user", userRouter);
 
-app.use("/api/auth/",authRouter)
-app.use("/api/boards/",boardRouter)
-app.use("/api/lists/",listRouter)
-app.use("/api/cards/",cardRouter)
-app.use("/api/user",userRouter)
-
-app.listen(port,()=>{
-    console.log(`Server running on ${port}`)
-    console.log(`Frontend URL: ${process.env.FRONTEND_URL}`)
-})
+// ✅ Start the server
+app.listen(port, () => {
+  console.log(`🚀 Server running on port ${port}`);
+  console.log(`🌐 Frontend URL: ${process.env.FRONTEND_URL}`);
+});

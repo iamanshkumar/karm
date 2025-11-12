@@ -18,12 +18,18 @@ const port = process.env.PORT || 3000
 
 connectDB()
 
-app.use(cors({
+// Enhanced CORS configuration for better cross-browser compatibility
+const corsOptions = {
     origin: process.env.NODE_ENV === 'production' 
       ? process.env.FRONTEND_URL 
       : "http://localhost:5173",
-    credentials: true
-}))
+    credentials: true,
+    optionsSuccessStatus: 200,
+    allowedHeaders: ['Content-Type', 'Authorization'],
+    exposedHeaders: ['Authorization']
+}
+
+app.use(cors(corsOptions))
 
 app.use(express.json())
 app.use(cookieParser())
@@ -32,31 +38,11 @@ app.get("/",(req,res)=>{
     res.send("Hello world")
 })
 
-// Add logging for debugging
-app.use("/api/auth/", (req, res, next) => {
-    console.log(`Auth route accessed: ${req.method} ${req.originalUrl}`)
-    next()
-}, authRouter)
-
-app.use("/api/boards/", (req, res, next) => {
-    console.log(`Boards route accessed: ${req.method} ${req.originalUrl}`)
-    next()
-}, boardRouter)
-
-app.use("/api/lists/", (req, res, next) => {
-    console.log(`Lists route accessed: ${req.method} ${req.originalUrl}`)
-    next()
-}, listRouter)
-
-app.use("/api/cards/", (req, res, next) => {
-    console.log(`Cards route accessed: ${req.method} ${req.originalUrl}`)
-    next()
-}, cardRouter)
-
-app.use("/api/user", (req, res, next) => {
-    console.log(`User route accessed: ${req.method} ${req.originalUrl}`)
-    next()
-}, userRouter)
+app.use("/api/auth/",authRouter)
+app.use("/api/boards/",boardRouter)
+app.use("/api/lists/",listRouter)
+app.use("/api/cards/",cardRouter)
+app.use("/api/user",userRouter)
 
 app.listen(port,()=>{
     console.log(`Server running on ${port}`)

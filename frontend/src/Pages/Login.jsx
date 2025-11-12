@@ -11,28 +11,34 @@ const Login = () => {
   const [password, setPassword] = useState("");
 
   const navigate = useNavigate();
-  const { backendUrl, setIsLoggedIn, getUserData } = useContext(AppContext);
+  const { backendUrl, setIsLoggedIn, getUserData, setAuthToken } = useContext(AppContext);
 
   const onSubmitHandler = async (e) => {
     e.preventDefault();
     try {
       axios.defaults.withCredentials = true;
 
-      let data;
+      let response;
       if (state === "Sign Up") {
-        ({ data } = await axios.post(`${backendUrl}/api/auth/signup`, {
+        response = await axios.post(`${backendUrl}/api/auth/signup`, {
           username,
           email,
           password,
-        }));
+        });
       } else {
-        ({ data } = await axios.post(`${backendUrl}/api/auth/login`, {
+        response = await axios.post(`${backendUrl}/api/auth/login`, {
           email,
           password,
-        }));
+        });
       }
 
+      const { data } = response;
+
       if (data.success) {
+        // Extract token from response if available
+        if (data.token) {
+          setAuthToken(data.token);
+        }
         setIsLoggedIn(true);
         getUserData();
         navigate("/boards");

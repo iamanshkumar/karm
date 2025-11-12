@@ -25,12 +25,12 @@ export const signup = async (req,res)=>{
         res.cookie("token",token , {
             httpOnly : true,
             secure : process.env.NODE_ENV === "production",
-            sameSite: process.env.NODE_ENV === 'production' ? "none" : "lax",
+            sameSite: process.env.NODE_ENV === 'production' ? "lax" : "lax",
             maxAge: 7*24*60*60*1000,
             path: '/'
         })
 
-        return res.json({success : true , message : "User created successfully"})
+        return res.json({success : true , message : "User created successfully", token})
     }catch(error){
         return res.send({success : false , message : error.message})
     }
@@ -62,12 +62,12 @@ export const login = async (req,res)=>{
         res.cookie("token" , token , {
             httpOnly : true,
             secure : process.env.NODE_ENV === 'production',
-            sameSite : process.env.NODE_ENV === 'production' ? "none" : "lax",
+            sameSite : process.env.NODE_ENV === 'production' ? "lax" : "lax",
             maxAge : 7*24*60*60*1000,
             path: '/'
         })
 
-        return res.json({success : true , message : "Logged in"})
+        return res.json({success : true , message : "Logged in", token})
     }catch(error){
         return res.json({success : false , message : error.message})
     }
@@ -79,7 +79,7 @@ export const logout = async (req,res)=>{
         res.clearCookie("token", {
             httpOnly: true,
             secure: process.env.NODE_ENV === 'production',
-            sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
+            sameSite: process.env.NODE_ENV === 'production' ? 'lax' : 'lax',
             path: '/'
         })
 

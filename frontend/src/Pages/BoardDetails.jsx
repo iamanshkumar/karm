@@ -1,478 +1,543 @@
-import React, { useContext, useEffect, useState } from "react";
+import React, { useCallback, useContext, useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import AppContext from "../context/AppContext";
 import axios from "axios";
 import { toast } from "react-toastify";
-import { Plus, Trash2, Edit3, X } from "lucide-react";
-import Navbar from "../components/Navbar";
 import {
-  DragDropContext,
-  Droppable,
-  Draggable,
-} from "@hello-pangea/dnd";
+  Plus,
+  Trash2,
+  Edit3,
+  X,
+  MessageSquare,
+  Clock,
+  MoreHorizontal,
+} from "lucide-react";
+import Navbar from "../components/Navbar";
+import { DragDropContext, Droppable, Draggable } from "@hello-pangea/dnd";
 
+/**
+ * Small UI components
+ */
+
+// Tab button - sharper, compact
+const TabButton = ({ active, onClick, icon, children }) => (
+  <button
+    onClick={onClick}
+    className={`flex items-center gap-2 px-3 py-2 text-sm rounded-md transition ${
+      active
+        ? "bg-indigo-50 text-indigo-700 border border-indigo-100"
+        : "text-gray-600 hover:bg-gray-50"
+    }`}
+  >
+    {icon}
+    <span className="font-medium">{children}</span>
+  </button>
+);
+
+// Crisp modal: light, slightly elevated, subtle border
+const Modal = ({ onClose, title, children, size = "md" }) => {
+  const maxw = size === "lg" ? "max-w-4xl" : "max-w-lg";
+  return (
+    <div className="fixed inset-0 z-50 flex items-start sm:items-center justify-center p-4 bg-black/30">
+      <div
+        className={`bg-white ${maxw} w-full rounded-lg shadow-lg border border-gray-100 p-6 relative`}
+      >
+        <button
+          onClick={onClose}
+          className="absolute right-4 top-4 text-gray-500 hover:text-gray-700"
+          aria-label="Close"
+        >
+          <X size={18} />
+        </button>
+        <h3 className="text-lg font-semibold text-gray-900 mb-4">{title}</h3>
+        {children}
+      </div>
+    </div>
+  );
+};
+
+/**
+ * BoardDetails Page
+ */
 const BoardDetails = () => {
   const { boardId } = useParams();
   const { backendUrl, user } = useContext(AppContext);
 
+  // state
   const [board, setBoard] = useState(null);
   const [lists, setLists] = useState([]);
+  const [cardsByList, setCardsByList] = useState({});
   const [loading, setLoading] = useState(true);
+  const [loadingCards, setLoadingCards] = useState(false);
 
-  // List management
+  // list create
   const [showListModal, setShowListModal] = useState(false);
   const [listTitle, setListTitle] = useState("");
   const [creatingList, setCreatingList] = useState(false);
 
-  // Card management
-  const [cardsByList, setCardsByList] = useState({});
-  const [loadingCards, setLoadingCards] = useState(false);
-
-  // Create Card
+  // card create
   const [showCardModal, setShowCardModal] = useState(false);
   const [activeListId, setActiveListId] = useState(null);
   const [cardTitle, setCardTitle] = useState("");
   const [cardDescription, setCardDescription] = useState("");
   const [creatingCard, setCreatingCard] = useState(false);
 
-  // Card Details & Editing
-  const [activeCard, setActiveCard] = useState(null);
+  // card details
   const [showCardDetails, setShowCardDetails] = useState(false);
+  const [activeCard, setActiveCard] = useState(null);
+  const [editing, setEditing] = useState(false);
   const [editTitle, setEditTitle] = useState("");
   const [editDescription, setEditDescription] = useState("");
-  const [editing, setEditing] = useState(false);
 
-  // --- FETCH BOARD AND LISTS ---
-  useEffect(() => {
-    const fetchBoardAndLists = async () => {
-      try {
-        const boardRes = await axios.get(`${backendUrl}/api/boards`);
-        const selectedBoard = boardRes.data.boards.find((b) => b._id === boardId);
-        if (!selectedBoard) {
-          toast.error("Board not found");
-          return;
-        }
-        setBoard(selectedBoard);
+  // tabs (details | comments | activity)
+  const [tab, setTab] = useState("details");
+  const [comments, setComments] = useState([]);
+  const [newComment, setNewComment] = useState("");
+  const [activity, setActivity] = useState([]);
 
-        const listRes = await axios.get(`${backendUrl}/api/lists/boards/${boardId}`);
-        const fetchedLists = listRes.data;
-        setLists(fetchedLists);
-        
-        // Fetch cards after lists are set
-        if (fetchedLists && fetchedLists.length > 0) {
-          await fetchCardsForLists(fetchedLists);
-        }
-      } catch (error) {
-        toast.error("Failed to load board");
-      } finally {
-        setLoading(false);
+  // fetch board + lists
+  const fetchCardsForLists = useCallback(
+    async (listsArray) => {
+      if (!Array.isArray(listsArray) || listsArray.length === 0) {
+        setCardsByList({});
+        return;
       }
-    };
-    fetchBoardAndLists();
-  }, [boardId, backendUrl]);
+      setLoadingCards(true);
+      try {
+        const promises = listsArray.map((l) =>
+          axios.get(`${backendUrl}/api/cards/lists/${l._id}`)
+        );
+        const results = await Promise.all(promises);
+        const map = {};
+        results.forEach((res, i) => {
+          const listId = listsArray[i]._id;
+          const cards = Array.isArray(res.data) ? res.data : res.data.cards || [];
+          map[listId] = cards.sort((a, b) => (a.position ?? 0) - (b.position ?? 0));
+        });
+        setCardsByList(map);
+      } catch (err) {
+        console.error("fetchCardsForLists error:", err);
+        toast.error("Failed to load cards");
+      } finally {
+        setLoadingCards(false);
+      }
+    },
+    [backendUrl]
+  );
 
-  // --- FETCH CARDS ---
-  const fetchCardsForLists = async (listsArray) => {
-    if (!Array.isArray(listsArray) || listsArray.length === 0) return;
-    setLoadingCards(true);
+  const fetchBoardAndLists = useCallback(async () => {
+    setLoading(true);
     try {
-      const promises = listsArray.map((l) =>
-        axios.get(`${backendUrl}/api/cards/lists/${l._id}`)
-      );
-      const results = await Promise.all(promises);
-      const map = {};
-      results.forEach((res, i) => {
-        // Sort cards by position if available
-        const cards = Array.isArray(res.data) ? res.data : [];
-        const listId = listsArray[i]._id;
-        
-        // Filter cards to ensure they belong to this list (in case backend returns wrong data)
-        const filteredCards = cards.filter(card => 
-          !card.listID || card.listID === listId
-        );
-        
-        map[listId] = filteredCards.sort((a, b) => 
-          (a.position || 0) - (b.position || 0)
-        );
-      });
-      setCardsByList(map);
-      console.log("Fetched cards by list:", map); // Debug log
-    } catch (error) {
-      console.error("Error fetching cards:", error);
-      toast.error("Failed to load cards");
+      const boardRes = await axios.get(`${backendUrl}/api/boards`);
+      const selectedBoard = boardRes.data.boards?.find((b) => b._id === boardId);
+      if (!selectedBoard) {
+        toast.error("Board not found");
+        setLoading(false);
+        return;
+      }
+      setBoard(selectedBoard);
+
+      const listRes = await axios.get(`${backendUrl}/api/lists/boards/${boardId}`);
+      const fetchedLists = Array.isArray(listRes.data) ? listRes.data : listRes.data.lists || [];
+      setLists(fetchedLists);
+      await fetchCardsForLists(fetchedLists);
+    } catch (err) {
+      console.error("fetchBoardAndLists error:", err);
+      toast.error("Failed to load board");
     } finally {
-      setLoadingCards(false);
+      setLoading(false);
     }
-  };
+  }, [backendUrl, boardId, fetchCardsForLists]);
 
-  // --- HELPER: Find which list a card belongs to ---
-  const findCardListId = (cardId) => {
-    return Object.keys(cardsByList).find(listId =>
-      cardsByList[listId].some(card => card._id === cardId)
-    );
-  };
+  useEffect(() => {
+    fetchBoardAndLists();
+  }, [fetchBoardAndLists]);
 
-  // --- CREATE LIST ---
+  // helpers
+  const isOwner = board?.createdBy?._id === user?._id;
+  const findCardListId = (cardId) =>
+    Object.keys(cardsByList).find((lid) => cardsByList[lid]?.some((c) => c._id === cardId));
+
+  // CREATE LIST
   const handleCreateList = async (e) => {
-    e.preventDefault();
+    e?.preventDefault();
     if (!listTitle.trim()) return toast.error("List title required");
-
+    setCreatingList(true);
     try {
-      setCreatingList(true);
       const { data } = await axios.post(`${backendUrl}/api/lists/boards/${boardId}`, {
-        title: listTitle,
+        title: listTitle.trim(),
       });
-
       if (data.success && data.list) {
-        setLists((prev) => [...prev, data.list]);
-        setCardsByList((prev) => ({ ...prev, [data.list._id]: [] }));
+        setLists((p) => [...p, data.list]);
+        setCardsByList((p) => ({ ...p, [data.list._id]: [] }));
         setShowListModal(false);
         setListTitle("");
-        toast.success("List created!");
+        toast.success("List created");
       } else {
-        toast.error(data.message || "Failed to create list");
+        toast.error(data.message || "Could not create list");
       }
     } catch (err) {
+      console.error("create list error:", err);
       toast.error("Server error creating list");
     } finally {
       setCreatingList(false);
     }
   };
 
-  // --- DELETE LIST ---
+  // DELETE LIST
   const handleDeleteList = async (listId) => {
     if (!window.confirm("Delete this list and all its cards?")) return;
     try {
       const { data } = await axios.delete(`${backendUrl}/api/lists/${listId}`);
       if (data.success) {
-        setLists((prev) => prev.filter((l) => l._id !== listId));
-        const copy = { ...cardsByList };
-        delete copy[listId];
-        setCardsByList(copy);
-        toast.success("List deleted!");
+        setLists((p) => p.filter((l) => l._id !== listId));
+        setCardsByList((p) => {
+          const copy = { ...p };
+          delete copy[listId];
+          return copy;
+        });
+        toast.success("List deleted");
+      } else {
+        toast.error(data.message || "Failed to delete list");
       }
-    } catch {
+    } catch (err) {
+      console.error("delete list error:", err);
       toast.error("Failed to delete list");
     }
   };
 
-  // --- CREATE CARD ---
+  // CREATE CARD
   const handleCreateCard = async (e) => {
-    e.preventDefault();
+    e?.preventDefault();
     if (!cardTitle.trim()) return toast.error("Card title required");
-
+    setCreatingCard(true);
     try {
-      setCreatingCard(true);
       const { data } = await axios.post(
         `${backendUrl}/api/cards/lists/${activeListId}`,
-        { title: cardTitle, description: cardDescription }
+        { title: cardTitle.trim(), description: cardDescription }
       );
-
       if (data.success && data.card) {
-        const newCard = { ...data.card, createdBy: data.card.createdBy || {} };
-        setCardsByList((prev) => ({
-          ...prev,
-          [activeListId]: [...(prev[activeListId] || []), newCard],
-        }));
+        setCardsByList((p) => ({ ...p, [activeListId]: [...(p[activeListId] || []), data.card] }));
         setShowCardModal(false);
         setCardTitle("");
         setCardDescription("");
         setActiveListId(null);
-        toast.success("Card created!");
+        toast.success("Card created");
       } else {
-        toast.error(data.message);
+        toast.error(data.message || "Failed to create card");
       }
-    } catch {
-      toast.error("Failed to create card");
+    } catch (err) {
+      console.error("create card error:", err);
+      toast.error("Server error creating card");
     } finally {
       setCreatingCard(false);
     }
   };
 
-  // --- DELETE CARD ---
+  // DELETE CARD
   const handleDeleteCard = async (cardId, listId) => {
     if (!window.confirm("Delete this card?")) return;
     try {
       const { data } = await axios.delete(`${backendUrl}/api/cards/${cardId}`);
       if (data.success) {
-        setCardsByList((prev) => ({
-          ...prev,
-          [listId]: prev[listId].filter((c) => c._id !== cardId),
-        }));
-        
-        // Close card details modal if it's open
-        if (showCardDetails && activeCard?._id === cardId) {
+        setCardsByList((p) => ({ ...p, [listId]: (p[listId] || []).filter((c) => c._id !== cardId) }));
+        if (activeCard?._id === cardId) {
           setShowCardDetails(false);
           setActiveCard(null);
         }
-        
-        toast.success("Card deleted!");
+        toast.success("Card deleted");
+      } else {
+        toast.error(data.message || "Failed to delete card");
       }
-    } catch {
+    } catch (err) {
+      console.error("delete card error:", err);
       toast.error("Failed to delete card");
     }
   };
 
-  // --- EDIT CARD ---
+  // EDIT CARD
   const handleEditCard = async (e) => {
-    e.preventDefault();
+    e?.preventDefault();
     if (!activeCard) return;
-
     try {
       const { data } = await axios.put(`${backendUrl}/api/cards/${activeCard._id}`, {
         title: editTitle,
         description: editDescription,
       });
-
       if (data.success) {
         setCardsByList((prev) => {
           const copy = { ...prev };
-          Object.keys(copy).forEach((listId) => {
-            copy[listId] = copy[listId].map((card) =>
-              card._id === activeCard._id
-                ? { ...card, title: editTitle, description: editDescription }
-                : card
+          Object.keys(copy).forEach((lid) => {
+            copy[lid] = copy[lid].map((c) =>
+              c._id === activeCard._id ? { ...c, title: editTitle, description: editDescription } : c
             );
           });
           return copy;
         });
-        setActiveCard({ ...activeCard, title: editTitle, description: editDescription });
+        setActiveCard((c) => ({ ...c, title: editTitle, description: editDescription }));
         setEditing(false);
-        toast.success("Card updated!");
+        await loadActivity(activeCard._id);
+        toast.success("Card updated");
       } else {
-        toast.error(data.message);
+        toast.error(data.message || "Failed to update card");
       }
-    } catch {
-      toast.error("Failed to update card");
+    } catch (err) {
+      console.error("edit card error:", err);
+      toast.error("Error updating card");
     }
   };
 
-  // --- DRAG AND DROP ---
+  // MOVE CARD (drag)
   const onDragEnd = async (result) => {
     const { source, destination, draggableId } = result;
-    
     if (!destination) return;
-    
-    if (
-      source.droppableId === destination.droppableId &&
-      source.index === destination.index
-    ) {
-      return;
-    }
+    if (source.droppableId === destination.droppableId && source.index === destination.index) return;
 
-    // Store previous state for rollback
-    const previousCardsByList = JSON.parse(JSON.stringify(cardsByList));
-
+    const prev = JSON.parse(JSON.stringify(cardsByList));
     try {
-      // Create new state
-      const newCardsByList = { ...cardsByList };
-      
-      // Get source list array (create copy)
-      const sourceList = [...(newCardsByList[source.droppableId] || [])];
-      // Get destination list array (create copy)  
-      const destList = [...(newCardsByList[destination.droppableId] || [])];
-      
-      // Find the card being moved
-      const cardIndex = sourceList.findIndex(card => card._id === draggableId);
-      if (cardIndex === -1) {
-        console.error("Card not found in source list");
+      const newState = { ...cardsByList };
+      const sourceArr = [...(newState[source.droppableId] || [])];
+      const destArr = [...(newState[destination.droppableId] || [])];
+
+      const idx = sourceArr.findIndex((c) => c._id === draggableId);
+      if (idx === -1) {
+        console.error("Card not found in source");
         return;
       }
-      
-      const [movedCard] = sourceList.splice(cardIndex, 1);
-      
-      // Update card's listID
-      const updatedCard = {
-        ...movedCard,
-        listID: destination.droppableId
-      };
-      
-      // Insert into destination list
-      destList.splice(destination.index, 0, updatedCard);
-      
-      // Update state
-      newCardsByList[source.droppableId] = sourceList;
-      newCardsByList[destination.droppableId] = destList;
-      
-      // Force update by creating new object
-      setCardsByList(newCardsByList);
+      const [moved] = sourceArr.splice(idx, 1);
+      const movedUpdated = { ...moved, listID: destination.droppableId };
+      destArr.splice(destination.index, 0, movedUpdated);
 
-      console.log("Moving card:", {
-        cardId: draggableId,
-        from: source.droppableId,
-        to: destination.droppableId,
-        position: destination.index
-      });
+      newState[source.droppableId] = sourceArr;
+      newState[destination.droppableId] = destArr;
+      setCardsByList(newState);
 
-      // Send to backend
-      const response = await axios.put(`${backendUrl}/api/cards/${draggableId}/move`, {
+      const resp = await axios.put(`${backendUrl}/api/cards/${draggableId}/move`, {
         listID: destination.droppableId,
         position: destination.index,
       });
 
-      if (response.data.success) {
-        toast.success("Card moved successfully");
-        
-        // Optional: Refetch to ensure complete sync with backend
-        if (response.data.card) {
-          setCardsByList(prev => {
-            const updated = { ...prev };
-            if (updated[destination.droppableId]) {
-              updated[destination.droppableId] = updated[destination.droppableId].map(card =>
-                card._id === draggableId ? { ...card, ...response.data.card } : card
+      if (!resp.data.success) {
+        throw new Error(resp.data.message || "Move failed");
+      } else {
+        toast.success("Card moved");
+        // merge backend response if any
+        if (resp.data.card) {
+          setCardsByList((prevState) => {
+            const copy = { ...prevState };
+            if (copy[destination.droppableId]) {
+              copy[destination.droppableId] = copy[destination.droppableId].map((c) =>
+                c._id === draggableId ? { ...c, ...resp.data.card } : c
               );
             }
-            return updated;
+            return copy;
           });
         }
-      } else {
-        throw new Error(response.data.message || "Failed to move card");
       }
-      
-    } catch (error) {
-      // Rollback on error
-      setCardsByList(previousCardsByList);
+    } catch (err) {
+      console.error("drag error:", err);
+      setCardsByList(prev);
       toast.error("Failed to move card");
-      console.error("Drag error:", error.response?.data || error.message);
     }
   };
 
-  // --- CLOSE MODALS WITH STATE CLEANUP ---
-  const closeListModal = () => {
-    setShowListModal(false);
-    setListTitle("");
+  // Comments + Activity loaders
+  const loadComments = async (cardId) => {
+    try {
+      const res = await axios.get(`${backendUrl}/api/cards/${cardId}/comments`);
+      const payload = res.data;
+      // backend might return array or {comments: [...]}
+      setComments(Array.isArray(payload) ? payload : payload.comments || []);
+    } catch (err) {
+      console.error("loadComments err:", err);
+      toast.error("Failed to load comments");
+    }
   };
 
-  const closeCardModal = () => {
-    setShowCardModal(false);
-    setCardTitle("");
-    setCardDescription("");
-    setActiveListId(null);
+  const loadActivity = async (cardId) => {
+    try {
+      const res = await axios.get(`${backendUrl}/api/cards/${cardId}/activity`);
+      const payload = res.data;
+      setActivity(Array.isArray(payload) ? payload : payload.activity || []);
+    } catch (err) {
+      console.error("loadActivity err:", err);
+      toast.error("Failed to load activity");
+    }
   };
 
-  const closeCardDetails = () => {
-    setShowCardDetails(false);
-    setActiveCard(null);
-    setEditing(false);
-    setEditTitle("");
-    setEditDescription("");
+  // Open card detail modal
+  const openCardDetails = async (card) => {
+    setActiveCard(card);
+    setEditTitle(card.title || "");
+    setEditDescription(card.description || "");
+    setShowCardDetails(true);
+    setTab("details");
+    await loadComments(card._id);
+    await loadActivity(card._id);
   };
 
-  // Debug useEffect to track state changes
-  useEffect(() => {
-    console.log("cardsByList updated:", cardsByList);
-  }, [cardsByList]);
+  // Add comment
+  const handleAddComment = async (e) => {
+    e?.preventDefault();
+    if (!activeCard) return toast.error("No active card");
+    if (!newComment.trim()) return toast.error("Comment empty");
+    try {
+      const { data } = await axios.post(`${backendUrl}/api/cards/${activeCard._id}/comments`, {
+        text: newComment.trim(),
+      });
+      if (data.success) {
+        setComments((p) => [...p, data.comment]);
+        setNewComment("");
+        await loadActivity(activeCard._id);
+        toast.success("Comment added");
+      } else {
+        toast.error(data.message || "Failed to add comment");
+      }
+    } catch (err) {
+      console.error("add comment err:", err);
+      toast.error("Failed to add comment");
+    }
+  };
 
-  useEffect(() => {
-    console.log("Lists updated:", lists);
-  }, [lists]);
+  // Assign user (example helper) - kept minimal for now
+  const assignUserToCard = async (cardId, userIdToAssign) => {
+    try {
+      const { data } = await axios.post(`${backendUrl}/api/cards/${cardId}/assign`, {
+        userId: userIdToAssign,
+      });
+      if (data.success) {
+        // update local assignees if present
+        setCardsByList((prev) => {
+          const copy = { ...prev };
+          Object.keys(copy).forEach((lid) => {
+            copy[lid] = copy[lid].map((c) => (c._id === cardId ? { ...c, assignees: data.assignees } : c));
+          });
+          return copy;
+        });
+        toast.success("Assigned");
+      } else {
+        toast.error(data.message || "Assign failed");
+      }
+    } catch (err) {
+      console.error("assign err:", err);
+      toast.error("Failed to assign");
+    }
+  };
 
-  if (loading)
+  // UI: Loading
+  if (loading) {
     return (
-      <div className="flex justify-center items-center h-screen text-indigo-600">
+      <div className="h-screen flex items-center justify-center text-indigo-600">
         Loading board...
       </div>
     );
-
-  const isOwner = board?.createdBy?._id === user?._id;
+  }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-gray-50">
+    <div className="min-h-screen bg-gray-50">
       <Navbar />
 
-      <div className="max-w-7xl mx-auto px-6 pt-8">
-        <div className="flex justify-between items-center mb-8">
+      <div className="max-w-7xl mx-auto px-6 pt-8 pb-16">
+        <div className="flex items-center justify-between mb-6">
           <div>
-            <h1 className="text-3xl font-semibold text-gray-900">{board.title}</h1>
-            {board.description && (
-              <p className="text-gray-600 text-sm mt-1">{board.description}</p>
-            )}
+            <h1 className="text-2xl font-semibold text-gray-900">{board?.title}</h1>
+            {board?.description && <p className="text-sm text-gray-600 mt-1">{board.description}</p>}
           </div>
 
           {isOwner && (
-            <button
-              onClick={() => setShowListModal(true)}
-              className="flex items-center gap-2 bg-indigo-600 text-white px-5 py-2.5 rounded-lg hover:bg-indigo-700 shadow-md transition"
-            >
-              <Plus size={18} />
-              Add List
-            </button>
+            <div className="flex items-center gap-3">
+              <button
+                onClick={() => setShowListModal(true)}
+                className="inline-flex items-center gap-2 bg-indigo-600 text-white px-4 py-2 rounded-md shadow-sm hover:bg-indigo-700 transition"
+              >
+                <Plus size={16} />
+                Add list
+              </button>
+              <button
+                onClick={fetchBoardAndLists}
+                className="inline-flex items-center gap-2 border border-gray-200 px-3 py-2 rounded-md text-sm hover:bg-gray-50"
+              >
+                Refresh
+              </button>
+            </div>
           )}
         </div>
 
-        {/* DRAG CONTEXT */}
         <DragDropContext onDragEnd={onDragEnd}>
-          <div className="flex overflow-x-auto space-x-5 pb-10" style={{ scrollbarWidth: 'thin' }}>
+          <div className="flex space-x-5 overflow-x-auto pb-6" style={{ scrollbarWidth: "thin" }}>
             {lists.map((list) => (
               <Droppable droppableId={list._id} key={list._id}>
                 {(provided, snapshot) => (
                   <div
                     ref={provided.innerRef}
                     {...provided.droppableProps}
-                    className={`w-72 flex-shrink-0 bg-white rounded-xl border border-gray-200 shadow-sm hover:shadow-md transition-all p-4 ${
-                      snapshot.isDraggingOver ? 'bg-blue-50 border-blue-300' : ''
+                    className={`w-72 flex-shrink-0 bg-white rounded-md border border-gray-100 shadow-sm p-3 transition ${
+                      snapshot.isDraggingOver ? "ring-1 ring-indigo-200" : ""
                     }`}
-                    data-list-id={list._id}
-                    data-card-count={cardsByList[list._id]?.length || 0}
                   >
-                    <div className="flex justify-between items-start mb-3">
-                      <h3 className="font-semibold text-gray-900 text-lg">{list.title}</h3>
-                      {isOwner && (
+                    <div className="flex items-start justify-between gap-2 mb-3">
+                      <div>
+                        <h3 className="text-sm font-semibold text-gray-900">{list.title}</h3>
+                        <div className="text-xs text-gray-500 mt-0.5">{(cardsByList[list._id]?.length || 0) + " cards"}</div>
+                      </div>
+                      <div className="flex items-center gap-2">
                         <button
                           onClick={() => handleDeleteList(list._id)}
                           className="text-gray-400 hover:text-red-500 p-1 rounded hover:bg-red-50"
+                          title="Delete list"
                         >
-                          <Trash2 size={18} />
+                          <Trash2 size={16} />
                         </button>
-                      )}
+                        <button
+                          onClick={() => {
+                            setActiveListId(list._id);
+                            setShowCardModal(true);
+                          }}
+                          className="text-indigo-600 text-sm font-medium px-2 py-1 rounded hover:bg-indigo-50"
+                        >
+                          + Add
+                        </button>
+                      </div>
                     </div>
 
-                    <div className="flex flex-col gap-3 mb-4 min-h-[40px]">
+                    <div className="flex flex-col gap-3 min-h-[40px]">
                       {(cardsByList[list._id] || []).map((card, index) => (
-                        <Draggable
-                          draggableId={card._id}
-                          index={index}
-                          key={card._id}
-                        >
+                        <Draggable key={card._id} draggableId={card._id} index={index}>
                           {(provided, snapshot) => (
                             <div
+                              ref={provided.innerRef}
                               {...provided.draggableProps}
                               {...provided.dragHandleProps}
-                              ref={provided.innerRef}
-                              onClick={() => {
-                                setActiveCard(card);
-                                setEditTitle(card.title);
-                                setEditDescription(card.description || "");
-                                setShowCardDetails(true);
-                              }}
-                              className={`bg-gray-50 border border-gray-200 rounded-lg p-2 text-sm text-gray-700 cursor-pointer transition-all hover:shadow-sm ${
-                                snapshot.isDragging ? "opacity-80 rotate-1 shadow-lg" : ""
-                              } ${snapshot.isDragging ? 'bg-blue-100 border-blue-300' : ''}`}
-                              data-card-id={card._id}
-                              data-list-id={card.listID}
+                              onClick={() => openCardDetails(card)}
+                              className={`group bg-white border border-gray-100 rounded-md p-3 cursor-pointer hover:shadow-md transition flex items-start gap-3 ${
+                                snapshot.isDragging ? "opacity-90 scale-[0.995]" : ""
+                              }`}
                             >
-                              <div className="flex justify-between items-start gap-2">
-                                <div className="flex-1 min-w-0">
-                                  <h4 className="font-medium text-gray-800 truncate">
-                                    {card.title}
-                                  </h4>
-                                  {card.description && (
-                                    <p className="text-xs text-gray-500 line-clamp-2 mt-1">
-                                      {card.description}
-                                    </p>
-                                  )}
-                                </div>
-                                {isOwner && (
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center justify-between gap-3">
+                                  <h4 className="text-sm font-medium text-gray-800 truncate">{card.title}</h4>
                                   <button
                                     onClick={(e) => {
                                       e.stopPropagation();
-                                      handleDeleteCard(card._id, list._id);
+                                      const listId = list._id;
+                                      handleDeleteCard(card._id, listId);
                                     }}
-                                    className="text-gray-400 hover:text-red-500 p-1 rounded hover:bg-red-50 flex-shrink-0"
+                                    className="text-gray-400 hidden group-hover:inline-flex p-1 rounded hover:bg-red-50"
+                                    title="Delete card"
                                   >
-                                    <Trash2 size={16} />
+                                    <Trash2 size={14} />
                                   </button>
+                                </div>
+                                {card.description && (
+                                  <p className="text-xs text-gray-500 mt-1 line-clamp-2">{card.description}</p>
                                 )}
+                                <div className="mt-2 flex items-center gap-2">
+                                  {card.assignees?.length > 0 && (
+                                    <div className="text-xs text-gray-500">{card.assignees.length} assignee(s)</div>
+                                  )}
+                                  <div className="text-xs text-gray-400">•</div>
+                                  <div className="text-xs text-gray-400">{card.createdBy?.username || "—"}</div>
+                                </div>
                               </div>
                             </div>
                           )}
@@ -480,147 +545,215 @@ const BoardDetails = () => {
                       ))}
                       {provided.placeholder}
                     </div>
-
-                    <button
-                      onClick={() => {
-                        setActiveListId(list._id);
-                        setShowCardModal(true);
-                      }}
-                      className="text-sm text-indigo-600 hover:text-indigo-700 font-medium w-full text-left"
-                    >
-                      + Add card
-                    </button>
                   </div>
                 )}
               </Droppable>
             ))}
+            {/* Empty-state column to hint "Add list" */}
+            <div className="w-72 flex-shrink-0 flex items-center">
+              <button
+                onClick={() => setShowListModal(true)}
+                className="w-full border-dashed border border-gray-200 rounded-md p-4 text-sm text-gray-500 hover:bg-gray-50"
+              >
+                + Create new list
+              </button>
+            </div>
           </div>
         </DragDropContext>
       </div>
 
-      {/* ---- Modals ---- */}
-
-      {/* Create List */}
+      {/* Modals */}
       {showListModal && (
-        <Modal onClose={closeListModal} title="Create a new list">
+        <Modal onClose={() => setShowListModal(false)} title="Create list">
           <form onSubmit={handleCreateList}>
             <input
               value={listTitle}
               onChange={(e) => setListTitle(e.target.value)}
-              placeholder="List Title"
-              className="w-full px-4 py-3 border rounded-lg mb-4 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-              required
               autoFocus
+              placeholder="List title"
+              className="w-full border border-gray-200 rounded-md p-3 mb-3 focus:outline-none focus:ring-1 focus:ring-indigo-200"
             />
-            <button
-              type="submit"
-              disabled={creatingList}
-              className="w-full bg-indigo-600 text-white py-3 rounded-lg hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition"
-            >
-              {creatingList ? "Creating..." : "Create"}
-            </button>
+            <div className="flex gap-3">
+              <button
+                type="submit"
+                disabled={creatingList}
+                className="flex-1 bg-indigo-600 text-white py-2 rounded-md hover:bg-indigo-700 transition disabled:opacity-50"
+              >
+                {creatingList ? "Creating..." : "Create"}
+              </button>
+              <button
+                type="button"
+                onClick={() => setShowListModal(false)}
+                className="flex-1 border border-gray-200 py-2 rounded-md"
+              >
+                Cancel
+              </button>
+            </div>
           </form>
         </Modal>
       )}
 
-      {/* Create Card */}
       {showCardModal && (
-        <Modal onClose={closeCardModal} title="Create a new card">
+        <Modal onClose={() => setShowCardModal(false)} title="Create card">
           <form onSubmit={handleCreateCard}>
             <input
               value={cardTitle}
               onChange={(e) => setCardTitle(e.target.value)}
-              placeholder="Card Title"
-              className="w-full px-4 py-3 border rounded-lg mb-4 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-              required
               autoFocus
+              placeholder="Card title"
+              className="w-full border border-gray-200 rounded-md p-3 mb-3 focus:outline-none focus:ring-1 focus:ring-indigo-200"
             />
             <textarea
               value={cardDescription}
               onChange={(e) => setCardDescription(e.target.value)}
+              rows={4}
               placeholder="Description (optional)"
-              className="w-full px-4 py-3 border rounded-lg mb-4 focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none"
-              rows={3}
+              className="w-full border border-gray-200 rounded-md p-3 mb-3 focus:outline-none focus:ring-1 focus:ring-indigo-200 resize-none"
             />
-            <button
-              type="submit"
-              disabled={creatingCard}
-              className="w-full bg-indigo-600 text-white py-3 rounded-lg hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition"
-            >
-              {creatingCard ? "Creating..." : "Create"}
-            </button>
+            <div className="flex gap-3">
+              <button
+                type="submit"
+                disabled={creatingCard}
+                className="flex-1 bg-indigo-600 text-white py-2 rounded-md hover:bg-indigo-700 transition disabled:opacity-50"
+              >
+                {creatingCard ? "Creating..." : "Create"}
+              </button>
+              <button type="button" onClick={() => setShowCardModal(false)} className="flex-1 border border-gray-200 py-2 rounded-md">
+                Cancel
+              </button>
+            </div>
           </form>
         </Modal>
       )}
 
-      {/* Card Details */}
       {showCardDetails && activeCard && (
-        <Modal
-          onClose={closeCardDetails}
-          title={editing ? "Edit Card" : activeCard.title}
-        >
-          {!editing ? (
+        <Modal onClose={() => setShowCardDetails(false)} title={editing ? "Edit card" : activeCard.title} size="lg">
+          {/* Tabs */}
+          <div className="flex gap-2 mb-4">
+            <TabButton active={tab === "details"} onClick={() => setTab("details")} icon={<Edit3 size={14} />}>
+              Details
+            </TabButton>
+            <TabButton active={tab === "comments"} onClick={() => setTab("comments")} icon={<MessageSquare size={14} />}>
+              Comments
+            </TabButton>
+            <TabButton active={tab === "activity"} onClick={() => setTab("activity")} icon={<Clock size={14} />}>
+              Activity
+            </TabButton>
+            <div className="ml-auto">
+              <button
+                className="inline-flex items-center gap-2 px-2 py-1 rounded-md border border-gray-100 hover:bg-gray-50 text-sm text-gray-600"
+                onClick={() => toast.info("More actions coming")}
+                title="More"
+              >
+                <MoreHorizontal size={14} />
+              </button>
+            </div>
+          </div>
+
+          {/* Tab panels */}
+          {tab === "details" && !editing && (
             <>
-              <p className="text-gray-600 mb-6 whitespace-pre-wrap">
-                {activeCard.description || "No description yet."}
-              </p>
-              {isOwner && (
-                <div className="flex items-center gap-3">
-                  <button
-                    onClick={() => setEditing(true)}
-                    className="flex items-center justify-center gap-2 flex-1 py-2.5 border border-gray-300 rounded-lg hover:bg-gray-50 transition"
-                  >
-                    <Edit3 size={16} /> Edit
-                  </button>
-                  <button
-                    onClick={() => {
-                      const listId = findCardListId(activeCard._id);
-                      if (listId) {
-                        handleDeleteCard(activeCard._id, listId);
-                      } else {
-                        toast.error("Could not find card's list");
-                      }
-                    }}
-                    className="flex items-center justify-center gap-2 flex-1 py-2.5 bg-red-500 text-white rounded-lg hover:bg-red-600 transition"
-                  >
-                    <Trash2 size={16} /> Delete
-                  </button>
-                </div>
-              )}
+              <p className="text-sm text-gray-700 mb-4 whitespace-pre-wrap">{activeCard.description || "No description"}</p>
+
+              <div className="flex gap-3">
+                {isOwner && (
+                  <>
+                    <button
+                      onClick={() => setEditing(true)}
+                      className="py-2.5 px-4 border border-gray-200 rounded-md text-sm hover:bg-gray-50"
+                    >
+                      <Edit3 size={14} className="inline-block mr-2" /> Edit
+                    </button>
+                    <button
+                      onClick={() => {
+                        const lid = findCardListId(activeCard._id);
+                        if (lid) handleDeleteCard(activeCard._id, lid);
+                        else toast.error("List not found");
+                      }}
+                      className="py-2.5 px-4 bg-red-500 text-white rounded-md text-sm hover:bg-red-600"
+                    >
+                      <Trash2 size={14} className="inline-block mr-2" /> Delete
+                    </button>
+                  </>
+                )}
+              </div>
             </>
-          ) : (
+          )}
+
+          {tab === "details" && editing && (
             <form onSubmit={handleEditCard}>
               <input
                 value={editTitle}
                 onChange={(e) => setEditTitle(e.target.value)}
-                className="w-full p-3 border rounded-lg mb-3 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                placeholder="Card title"
+                className="w-full border border-gray-200 rounded-md p-3 mb-3 focus:outline-none focus:ring-1 focus:ring-indigo-200"
                 required
                 autoFocus
               />
               <textarea
                 value={editDescription}
                 onChange={(e) => setEditDescription(e.target.value)}
-                className="w-full p-3 border rounded-lg mb-4 focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none"
-                rows={4}
-                placeholder="Card description"
+                rows={6}
+                className="w-full border border-gray-200 rounded-md p-3 mb-3 focus:outline-none focus:ring-1 focus:ring-indigo-200 resize-none"
               />
               <div className="flex gap-3">
-                <button
-                  type="button"
-                  onClick={() => setEditing(false)}
-                  className="flex-1 py-2.5 border rounded-lg hover:bg-gray-50 transition"
-                >
+                <button type="button" onClick={() => setEditing(false)} className="flex-1 border border-gray-200 py-2 rounded-md">
                   Cancel
                 </button>
-                <button
-                  type="submit"
-                  className="flex-1 py-2.5 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition"
-                >
+                <button type="submit" className="flex-1 bg-indigo-600 text-white py-2 rounded-md hover:bg-indigo-700">
                   Save
                 </button>
               </div>
             </form>
+          )}
+
+          {tab === "comments" && (
+            <>
+              <div className="max-h-64 overflow-y-auto mb-3 space-y-3">
+                {comments.length === 0 && <div className="text-sm text-gray-400 text-center py-6">No comments yet</div>}
+                {comments.map((c) => (
+                  <div key={c._id || c.id || Math.random()} className="border border-gray-100 rounded-md p-3 bg-gray-50">
+                    <div className="flex items-center justify-between mb-1">
+                      <div className="text-sm font-medium text-gray-800">{c.author?.username || c.author?.name || "User"}</div>
+                      <div className="text-xs text-gray-400">{new Date(c.createdAt || c.created_at || Date.now()).toLocaleString()}</div>
+                    </div>
+                    <div className="text-sm text-gray-700 whitespace-pre-wrap">{c.text}</div>
+                  </div>
+                ))}
+              </div>
+
+              <form onSubmit={handleAddComment}>
+                <textarea
+                  value={newComment}
+                  onChange={(e) => setNewComment(e.target.value)}
+                  rows={3}
+                  placeholder="Write a comment..."
+                  className="w-full border border-gray-200 rounded-md p-3 mb-3 focus:outline-none focus:ring-1 focus:ring-indigo-200 resize-none"
+                />
+                <div className="flex gap-3">
+                  <button type="submit" className="flex-1 bg-indigo-600 text-white py-2 rounded-md hover:bg-indigo-700">
+                    Add comment
+                  </button>
+                  <button type="button" onClick={() => setNewComment("")} className="flex-1 border border-gray-200 py-2 rounded-md">
+                    Clear
+                  </button>
+                </div>
+              </form>
+            </>
+          )}
+
+          {tab === "activity" && (
+            <>
+              <div className="max-h-72 overflow-y-auto space-y-3">
+                {activity.length === 0 && <div className="text-sm text-gray-400 text-center py-6">No activity yet</div>}
+                {activity.map((a) => (
+                  <div key={a._id || a.id || Math.random()} className="flex items-start gap-3 border border-gray-100 rounded-md p-3 bg-gray-50">
+                    <div className="text-sm font-medium text-gray-800">{a.user?.username || a.user?.name || "User"}</div>
+                    <div className="text-sm text-gray-700">{a.message || (a.type ? `${a.type} performed` : "Activity")}</div>
+                    <div className="ml-auto text-xs text-gray-400">{new Date(a.createdAt || a.created_at || Date.now()).toLocaleString()}</div>
+                  </div>
+                ))}
+              </div>
+            </>
           )}
         </Modal>
       )}
@@ -628,20 +761,4 @@ const BoardDetails = () => {
   );
 };
 
-// Generic Modal Component
-const Modal = ({ children, onClose, title }) => (
-  <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-    <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6 relative animate-fadeIn">
-      <button
-        onClick={onClose}
-        className="absolute top-4 right-4 text-gray-500 hover:text-gray-700 transition"
-      >
-        <X size={20} />
-      </button>
-      <h2 className="text-2xl font-semibold text-gray-900 mb-6">{title}</h2>
-      {children}
-    </div>
-  </div>
-);
-
-export default BoardDetails; 
+export default BoardDetails;

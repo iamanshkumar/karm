@@ -18,14 +18,14 @@ connectDB();
 
 // ✅ Secure, Safari-compatible CORS config
 const corsOptions = {
-  origin:
-    process.env.NODE_ENV === "production"
-      ? process.env.FRONTEND_URL
+    origin: process.env.NODE_ENV === 'production' 
+      ? process.env.FRONTEND_URL 
       : "http://localhost:5173",
-  credentials: true, // ✅ Allow cookies
-  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-  allowedHeaders: ["Content-Type", "Authorization"],
-};
+    credentials: true,
+    optionsSuccessStatus: 200,
+    allowedHeaders: ['Content-Type', 'Authorization'],
+    exposedHeaders: ['Authorization']
+}
 
 app.use(cors(corsOptions));
 app.use(express.json());

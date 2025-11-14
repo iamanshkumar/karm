@@ -1,6 +1,6 @@
 import express from "express"
 import userAuth from "../middleware/userAuth.js"
-import { createCardById, deleteCard, getCardById, getCardsByList, moveCard, updateCard } from "../controllers/cardController.js"
+import { addComments, assignUserToCard, createCardById, deleteCard, getCardById, getCardsByList, getComments, moveCard, updateCard ,getActivity } from "../controllers/cardController.js"
 
 const cardRouter = express()
 
@@ -10,5 +10,9 @@ cardRouter.get("/:id",getCardById)
 cardRouter.put("/:id",userAuth,updateCard)
 cardRouter.delete("/:id",userAuth,deleteCard)
 cardRouter.put("/:id/move",userAuth , moveCard)
+cardRouter.post("/:id/comments",userAuth, addComments)
+cardRouter.get("/:id/comments" , userAuth , getComments)
+cardRouter.post("/:id/comments" , userAuth , assignUserToCard)
+cardRouter.get("/:id/activity" , getActivity)
 
 export default cardRouter

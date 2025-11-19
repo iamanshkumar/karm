@@ -2,9 +2,6 @@ import Board from "../models/boardModel.js";
 import Card from "../models/cardModel.js";
 import List from "../models/listModel.js";
 
-/* ======================================================
-    📌 CREATE CARD
-======================================================= */
 export const createCardById = async (req, res) => {
   try {
     const { title, description } = req.body;
@@ -42,9 +39,7 @@ export const createCardById = async (req, res) => {
   }
 };
 
-/* ======================================================
-    📌 GET CARDS BY LIST
-======================================================= */
+
 export const getCardsByList = async (req, res) => {
   try {
     const { listid } = req.params;
@@ -62,9 +57,7 @@ export const getCardsByList = async (req, res) => {
   }
 };
 
-/* ======================================================
-    📌 GET SINGLE CARD
-======================================================= */
+
 export const getCardById = async (req, res) => {
   try {
     const { id } = req.params;
@@ -83,9 +76,7 @@ export const getCardById = async (req, res) => {
   }
 };
 
-/* ======================================================
-    📌 UPDATE CARD
-======================================================= */
+
 export const updateCard = async (req, res) => {
   try {
     const { id } = req.params;
@@ -115,9 +106,7 @@ export const updateCard = async (req, res) => {
   }
 };
 
-/* ======================================================
-    📌 DELETE CARD
-======================================================= */
+
 export const deleteCard = async (req, res) => {
   try {
     const { id } = req.params;
@@ -137,9 +126,7 @@ export const deleteCard = async (req, res) => {
   }
 };
 
-/* ======================================================
-    📌 MOVE CARD (Drag and Drop)
-======================================================= */
+
 export const moveCard = async (req, res) => {
   try {
     const { id } = req.params;
@@ -169,9 +156,7 @@ export const moveCard = async (req, res) => {
   }
 };
 
-/* ======================================================
-    📌 ADD COMMENT
-======================================================= */
+
 export const addComments = async (req, res) => {
   try {
     const { id } = req.params; // card ID
@@ -211,9 +196,7 @@ export const addComments = async (req, res) => {
   }
 };
 
-/* ======================================================
-    📌 GET COMMENTS
-======================================================= */
+
 export const getComments = async (req, res) => {
   try {
     const { id } = req.params;
@@ -228,9 +211,91 @@ export const getComments = async (req, res) => {
   }
 };
 
-/* ======================================================
-    📌 ASSIGN USER TO CARD
-======================================================= */
+export const updateComment = async(req,res)=>{
+  try{
+    const {id , commentId} = req.params;
+    const {text} = req.body;
+
+    if(!text || !text.trim()){
+      return res.json ({success : false, message : "Comment text cannot be empty"})
+    }
+
+    const card = await Card.findById(id);
+    if(!card){
+      return res.json({success:  false , message : "Card not found"})
+    }
+
+    const comment = card.comments.find(c=>c._id.toString() === commentId)
+    if(!comment){
+      return res.json({success : false , message : "Comment not found"})
+    }
+
+    if(comment.author.toString() !==req.user._id.toString()){
+      return res.json({success : false , message : "You can only edit your own comments"})
+    }
+
+    comment.text = text.trim()
+    comment.updatedAt = new Date();
+
+    card.activity.push({
+      type : "edit_comment",
+      user : req.user.id,
+      targetId : id,
+      meta : {commentId , text}
+    })
+
+    await card.save();
+
+    const populated = await card.populate("comments.author", "username");
+    const updatedComment = populated.comments.find(c=>c._id.toString() === commentId);
+
+
+    return res.json({
+      success : true,
+      message : "Comment updated successfully",
+      comment : updatedComment
+    })
+  }catch(error){
+    return res.json({success : false , message : error.message})
+  }
+}
+
+
+export const deleteComment = async (req,res)=>{
+  try{
+    const {id , commentId } = req.params;
+
+    const card = await Card.findById(id);
+    if(!card){
+      return res.josn({success : false, message : "Card not found"})
+    }
+
+    const comment = card.comments.find(c=>c._id.toString() === commentId)
+    if(!comment){
+      return res.json({success : false, message: "Comment not found"})
+    }
+
+    if(comment.author.toString() !== req.user.id.toString()){
+      return res.json({success : false, message:"You can only delete your own comments"})
+    }
+
+    card.comments = card.comments.filter(c=>c._id.toString() !== commentId)
+
+    card.activity.push({
+      type : "delete_comment",
+      user: req.user.id,
+      targetId : id,
+      meta : {commentId}
+    })
+
+    await card.save();
+    
+    return res.json({success : true , message : "Comment deleted successfully"})
+  }catch(error){
+    return res.json({success : false, message : error.message})
+  }
+}
+
 export const assignUserToCard = async (req, res) => {
   try {
     const { id } = req.params; // card ID

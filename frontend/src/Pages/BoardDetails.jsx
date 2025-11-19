@@ -95,6 +95,9 @@ const BoardDetails = () => {
   const [newComment, setNewComment] = useState("");
   const [activity, setActivity] = useState([]);
 
+  const [editingCommentId , setEditingCommentId] = useState(null);
+  const [editCommentText , setEditCommentText] = useState("");
+
   // fetch board + lists
   const fetchCardsForLists = useCallback(
     async (listsArray) => {
@@ -424,6 +427,51 @@ const BoardDetails = () => {
     }
   };
 
+  const handleEditComment = async (cardId , commentId) =>{
+    if(!editCommentText.trim()){
+      return toast.error("Comment cannot be empty")
+    }
+
+    try{
+      const {data} = await axios.put(`${backendUrl}/api/cards/${cardId}/comments/${commentId}` ,
+        {text : editCommentText.trim()}
+      )
+
+      if(data.success){
+        setComments((prev)=>{
+          return prev.map((c)=>c._id === commentId ? {...c , text : editCommentText.trim() , updatedAt : new Date()} : c)
+        })
+
+        setEditingCommentId(null);
+        setEditCommentText("")
+        toast.success("Comment updated")
+      }else{
+        toast.success(data.message || "Failed to update comment")
+      }
+    }catch(error){
+      toast.error(error.message)
+    }
+  }
+
+  const handleDeleteComment = async (cardId , commentId)=>{
+    if(!window.confirm("Delete this comment?")){
+      return;
+    }
+
+    try{
+      const {data} = await axios.delete(`${backendUrl}/api/cards/${cardId}/comments/${commentId}`)
+      if(data.success){
+        setComments((prev)=>prev.filter((c)=>c._id !== commentId))
+        toast.success("Comment deleted")
+      }else{
+        toast.error(data.message || "Failed to delete comment")
+      }
+    }catch(error){
+      toast.error("Failed to delete comment")
+    }
+
+  }
+
   // UI: Loading
   if (loading) {
     return (
@@ -707,39 +755,95 @@ const BoardDetails = () => {
           )}
 
           {tab === "comments" && (
-            <>
-              <div className="max-h-64 overflow-y-auto mb-3 space-y-3">
-                {comments.length === 0 && <div className="text-sm text-gray-400 text-center py-6">No comments yet</div>}
-                {comments.map((c) => (
-                  <div key={c._id || c.id || Math.random()} className="border border-gray-100 rounded-md p-3 bg-gray-50">
-                    <div className="flex items-center justify-between mb-1">
-                      <div className="text-sm font-medium text-gray-800">{c.author?.username || c.author?.name || "User"}</div>
-                      <div className="text-xs text-gray-400">{new Date(c.createdAt || c.created_at || Date.now()).toLocaleString()}</div>
-                    </div>
-                    <div className="text-sm text-gray-700 whitespace-pre-wrap">{c.text}</div>
-                  </div>
-                ))}
+  <>
+    <div className="max-h-64 overflow-y-auto mb-3 space-y-3">
+      {comments.length === 0 && <div className="text-sm text-gray-400 text-center py-6">No comments yet</div>}
+      {comments.map((c) => (
+        <div key={c._id || Math.random()} className="border border-gray-100 rounded-md p-3 bg-gray-50 group">
+          {editingCommentId === c._id ? (
+            <form onSubmit={(e) => { e.preventDefault(); handleEditComment(activeCard._id, c._id); }}>
+              <textarea
+                value={editCommentText}
+                onChange={(e) => setEditCommentText(e.target.value)}
+                rows={3}
+                className="w-full border border-gray-200 rounded-md p-2 mb-2 focus:outline-none focus:ring-1 focus:ring-indigo-200 resize-none"
+                autoFocus
+              />
+              <div className="flex gap-2">
+                <button
+                  type="submit"
+                  className="flex-1 bg-indigo-600 text-white py-1 px-2 rounded text-sm hover:bg-indigo-700"
+                >
+                  Save
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setEditingCommentId(null);
+                    setEditCommentText("");
+                  }}
+                  className="flex-1 border border-gray-200 py-1 px-2 rounded text-sm"
+                >
+                  Cancel
+                </button>
               </div>
-
-              <form onSubmit={handleAddComment}>
-                <textarea
-                  value={newComment}
-                  onChange={(e) => setNewComment(e.target.value)}
-                  rows={3}
-                  placeholder="Write a comment..."
-                  className="w-full border border-gray-200 rounded-md p-3 mb-3 focus:outline-none focus:ring-1 focus:ring-indigo-200 resize-none"
-                />
-                <div className="flex gap-3">
-                  <button type="submit" className="flex-1 bg-indigo-600 text-white py-2 rounded-md hover:bg-indigo-700">
-                    Add comment
-                  </button>
-                  <button type="button" onClick={() => setNewComment("")} className="flex-1 border border-gray-200 py-2 rounded-md">
-                    Clear
-                  </button>
+            </form>
+          ) : (
+            <>
+              <div className="flex items-center justify-between mb-1">
+                <div className="text-sm font-medium text-gray-800">{c.author?.username || "User"}</div>
+                <div className="flex items-center gap-2">
+                  <div className="text-xs text-gray-400">
+                    {new Date(c.createdAt || Date.now()).toLocaleString()}
+                    {c.updatedAt && c.updatedAt !== c.createdAt && " (edited)"}
+                  </div>
+                  {c.author?._id === user?._id && (
+                    <div className="hidden group-hover:flex gap-1">
+                      <button
+                        onClick={() => {
+                          setEditingCommentId(c._id);
+                          setEditCommentText(c.text);
+                        }}
+                        className="text-indigo-600 hover:text-indigo-700 text-xs px-2 py-1 rounded hover:bg-indigo-50"
+                      >
+                        Edit
+                      </button>
+                      <button
+                        onClick={() => handleDeleteComment(activeCard._id, c._id)}
+                        className="text-red-600 hover:text-red-700 text-xs px-2 py-1 rounded hover:bg-red-50"
+                      >
+                        Delete
+                      </button>
+                    </div>
+                  )}
                 </div>
-              </form>
+              </div>
+              <div className="text-sm text-gray-700 whitespace-pre-wrap">{c.text}</div>
             </>
           )}
+        </div>
+      ))}
+    </div>
+
+    <form onSubmit={handleAddComment}>
+      <textarea
+        value={newComment}
+        onChange={(e) => setNewComment(e.target.value)}
+        rows={3}
+        placeholder="Write a comment..."
+        className="w-full border border-gray-200 rounded-md p-3 mb-3 focus:outline-none focus:ring-1 focus:ring-indigo-200 resize-none"
+      />
+      <div className="flex gap-3">
+        <button type="submit" className="flex-1 bg-indigo-600 text-white py-2 rounded-md hover:bg-indigo-700">
+          Add comment
+        </button>
+        <button type="button" onClick={() => setNewComment("")} className="flex-1 border border-gray-200 py-2 rounded-md">
+          Clear
+        </button>
+      </div>
+    </form>
+  </>
+)}
 
           {tab === "activity" && (
             <>

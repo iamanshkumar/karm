@@ -296,7 +296,7 @@ export const deleteComment = async (req,res)=>{
   }
 }
 
-export const assignUserToCard = async (req, res) => {
+export const assignUser = async (req, res) => {
   try {
     const { id } = req.params; // card ID
     const { userId } = req.body;
@@ -323,6 +323,34 @@ export const assignUserToCard = async (req, res) => {
     return res.json({ success: false, message: error.message });
   }
 };
+
+export const removeAssignee = async (req,res)=>{
+  try{
+    const {id} = req.params;
+    const {userId} = req.body;
+
+    const card = await Card.findById(id);
+
+    if(!card){
+      return res.json({success : false , message : "Card not found"})
+    }
+
+    card.assignees = card.assignees.filter((uid)=>uid.toString()!==userId)
+
+    card.activity.push({
+      type : "unassign",
+      user : req.user.id,
+      targetId : id,
+      meta : {removedUser : userId}
+    })
+
+    await card.save();
+
+    return res.json({success : true , assignees : card.assignees})
+  }catch(error){
+    return res.json({success : false , message : error.message})
+  }
+}
 
 export const getActivity = async (req, res) => {
   try {

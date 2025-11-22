@@ -54,7 +54,7 @@ const cardSchema = new mongoose.Schema({
         required : true
     },
     comments : [commentSchema],
-    assignees : [{type : mongoose.Schema.Types.ObjectId , ref : "User"}],
+    assignees : [{type : mongoose.Schema.Types.ObjectId , ref : "User" , default : []}],
     attachments : [{url : String , filename : String , uploadedAt : Date}],
     activity : [activitySchema]
 },

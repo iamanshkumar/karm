@@ -98,6 +98,9 @@ const BoardDetails = () => {
   const [editingCommentId , setEditingCommentId] = useState(null);
   const [editCommentText , setEditCommentText] = useState("");
 
+  const [allUsers , setAllUsers] = useState([]);
+  const [showAssignDropdown , setShowAssignDropdown] = useState(false);
+
   // fetch board + lists
   const fetchCardsForLists = useCallback(
     async (listsArray) => {
@@ -153,6 +156,12 @@ const BoardDetails = () => {
   }, [backendUrl, boardId, fetchCardsForLists]);
 
   useEffect(() => {
+    const fetchUsers = async()=>{
+      const {data} = await axios.get(`${backendUrl}/api/users`);
+      setAllUsers(data.users);
+    }
+
+    fetchUsers(),
     fetchBoardAndLists();
   }, [fetchBoardAndLists]);
 
@@ -403,29 +412,54 @@ const BoardDetails = () => {
   };
 
   // Assign user (example helper) - kept minimal for now
-  const assignUserToCard = async (cardId, userIdToAssign) => {
+  const handleAssignUser = async (cardId, userId) => {
     try {
       const { data } = await axios.post(`${backendUrl}/api/cards/${cardId}/assign`, {
-        userId: userIdToAssign,
+        userId,
       });
+
       if (data.success) {
-        // update local assignees if present
+        toast.success("Assigned!");
+        setActiveCard((prev) => ({ ...prev, assignees: data.assignees }));
+
         setCardsByList((prev) => {
           const copy = { ...prev };
           Object.keys(copy).forEach((lid) => {
-            copy[lid] = copy[lid].map((c) => (c._id === cardId ? { ...c, assignees: data.assignees } : c));
+            copy[lid] = copy[lid].map((c) =>
+              c._id === cardId ? { ...c, assignees: data.assignees } : c
+            );
           });
           return copy;
         });
-        toast.success("Assigned");
-      } else {
-        toast.error(data.message || "Assign failed");
+
+        setShowAssignDropdown(false);
       }
-    } catch (err) {
-      console.error("assign err:", err);
-      toast.error("Failed to assign");
+    } catch {
+      toast.error("Assign failed");
     }
   };
+
+  const handleRemoveAssignee = async(cardId , userId)=>{
+    try{
+      const {data} = await axios.post(`${backendUrl}/api/cards/${cardId}/removeAssignee` , {userId});
+
+      if(data.success){
+        toast.success("Removed")
+        setActiveCard((prev)=>({...prev , assignees : data.assignees}))
+
+        setCardsByList((prev)=>{
+          const copy = {...prev};
+          Object.keys(copy).forEach((lid)=>{
+            copy[lid] = copy[lid].map((c)=>c._id === cardId ? {...c , assignees : data.assignees} : c)
+          })
+          return copy;
+        })  
+      }
+    }catch{
+      toast.error("Removed failed")
+    }
+  }
+
 
   const handleEditComment = async (cardId , commentId) =>{
     if(!editCommentText.trim()){

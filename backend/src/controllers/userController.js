@@ -14,3 +14,18 @@ export const getUserData = async(req,res)=>{
         return res.json({success : false , message : error.message})
     }
 }
+
+export const getAllUsers = async(req,res)=>{
+    try{
+        const users = await User.find({}, "_id username email");
+        return res.json({
+            success : true,
+            users
+        })
+    }catch(error){
+        return res.json({
+            success : false,
+            message : error.message
+        })
+    }
+}

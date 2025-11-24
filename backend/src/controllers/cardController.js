@@ -298,7 +298,7 @@ export const deleteComment = async (req,res)=>{
 
 export const assignUser = async (req, res) => {
   try {
-    const { id } = req.params; // card ID
+    const { id } = req.params;
     const { userId } = req.body;
 
     const card = await Card.findById(id);
@@ -317,8 +317,13 @@ export const assignUser = async (req, res) => {
     });
 
     await card.save();
+    
+    const populatedCard = await Card.findById(id).populate("assignees", "username name email");
 
-    return res.json({ success: true, assignees: card.assignees });
+    return res.json({ 
+      success: true, 
+      assignees: populatedCard.assignees 
+    });
   } catch (error) {
     return res.json({ success: false, message: error.message });
   }
@@ -346,7 +351,12 @@ export const removeAssignee = async (req,res)=>{
 
     await card.save();
 
-    return res.json({success : true , assignees : card.assignees})
+    const populatedCard = await Card.findById(id).populate("assignees", "username name email");
+
+    return res.json({
+      success: true, 
+      assignees: populatedCard.assignees 
+    });
   }catch(error){
     return res.json({success : false , message : error.message})
   }

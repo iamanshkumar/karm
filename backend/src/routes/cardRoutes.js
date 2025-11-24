@@ -15,7 +15,7 @@ cardRouter.get("/:id/comments" , userAuth , getComments)
 cardRouter.put("/:id/comments/:commentId" , userAuth , updateComment)
 cardRouter.delete("/:id/comments/:commentId" , userAuth , deleteComment)
 cardRouter.get("/:id/activity" , getActivity)
-cardRouter.get("/:id/assign" ,userAuth, assignUser);
-cardRouter.get("/:id/removeAssignee" , userAuth , removeAssignee)
+cardRouter.post("/:id/assign" ,userAuth, assignUser);
+cardRouter.post("/:id/removeAssignee" , userAuth , removeAssignee)
 
 export default cardRouter

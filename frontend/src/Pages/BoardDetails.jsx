@@ -14,12 +14,9 @@ import {
 } from "lucide-react";
 import Navbar from "../components/Navbar";
 import { DragDropContext, Droppable, Draggable } from "@hello-pangea/dnd";
+import AssignUserPannel from "./AssignUserPannel";
 
-/**
- * Small UI components
- */
 
-// Tab button - sharper, compact
 const TabButton = ({ active, onClick, icon, children }) => (
   <button
     onClick={onClick}
@@ -101,6 +98,7 @@ const BoardDetails = () => {
   const [allUsers , setAllUsers] = useState([]);
   const [showAssignDropdown , setShowAssignDropdown] = useState(false);
 
+  const [assignPanelOpen , setAssignPanelOpen] = useState(false)
   // fetch board + lists
   const fetchCardsForLists = useCallback(
     async (listsArray) => {
@@ -157,7 +155,7 @@ const BoardDetails = () => {
 
   useEffect(() => {
     const fetchUsers = async()=>{
-      const {data} = await axios.get(`${backendUrl}/api/users`);
+      const {data} = await axios.get(`${backendUrl}/api/user/all`);
       setAllUsers(data.users);
     }
 
@@ -738,6 +736,12 @@ const BoardDetails = () => {
               <p className="text-sm text-gray-700 mb-4 whitespace-pre-wrap">{activeCard.description || "No description"}</p>
 
               <div className="flex gap-3">
+                <button
+                  onClick={() => setAssignPanelOpen(true)}
+                  className="py-2.5 px-4 border border-gray-200 rounded-md text-sm hover:bg-gray-50"
+                >
+                Manage Assignees
+                </button>
                 {isOwner && (
                   <>
                     <button
@@ -756,6 +760,7 @@ const BoardDetails = () => {
                     >
                       <Trash2 size={14} className="inline-block mr-2" /> Delete
                     </button>
+
                   </>
                 )}
               </div>
@@ -895,6 +900,35 @@ const BoardDetails = () => {
           )}
         </Modal>
       )}
+
+      <AssignUserPannel 
+        open={assignPanelOpen}
+        onClose={()=>setAssignPanelOpen(false)}
+        card={activeCard}
+        backendUrl={backendUrl}
+        onAssigned={(cardId , assignees)=>{
+          setActiveCard(prev=>prev?._id === cardId ? {...prev,assignees} : prev)
+          setCardsByList(prev=>{
+            const copy = {...prev};
+            Object.keys(copy).forEach(lid=>{
+              copy[lid] = copy[lid].map(c=>
+                c._id === cardId ? {...c,assignees} : c
+              )
+            })
+            return copy
+          })
+        }}
+        onRemoved={(cardId , assignees)=>{
+          setActiveCard(prev=>prev?._id === cardId ? {...prev,assignees} : prev)
+          setCardsByList(prev=>{
+            const copy = {...prev}
+            Object.keys(copy).forEach(lid=>{
+              copy[lid]=copy[lid].map(c=> c._id === cardId ? {...c,assignees} : c)
+            })
+            return copy;
+          })
+        }}
+      ></AssignUserPannel>
     </div>
   );
 };

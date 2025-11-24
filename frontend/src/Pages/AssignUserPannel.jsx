@@ -22,14 +22,17 @@ const getColor = (name = "") => {
     "#F3E8FF",
     "#FFE8F6",
   ];
-  const index = name.charCodeAt(0) % colors.length;
+  const safeName = name || "Unknown";
+  const index = safeName.charCodeAt(0) % colors.length;
   return colors[index];
 };
 
 const getInitials = (name = "") => {
-  const parts = name.split(" ");
+  const safeName = name || "Unknown User";
+  const parts = safeName.split(" ").filter(part => part.trim() !== "");
+  if (parts.length === 0) return "U";
   if (parts.length === 1) return parts[0][0]?.toUpperCase() || "U";
-  return (parts[0][0] + parts[1][0]).toUpperCase();
+  return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
 };
 
 const AssignUserPanel = ({
@@ -43,9 +46,11 @@ const AssignUserPanel = ({
   const [allUsers, setAllUsers] = useState([]);
   const [query, setQuery] = useState("");
   const [loading, setLoading] = useState(false);
+  const [currentCard, setCurrentCard] = useState(null);
 
   const debounceQuery = useDebounced(query, 200);
 
+  // Fetch all users when panel opens
   useEffect(() => {
     if (!open) return;
 
@@ -65,6 +70,23 @@ const AssignUserPanel = ({
     fetchUsers();
   }, [open, backendUrl]);
 
+
+  const populatedAssignees = useMemo(() => {
+    if (!card?.assignees || !allUsers.length) return [];
+    
+    return card.assignees.map(assignee => {
+      if (assignee && typeof assignee === 'object' && assignee.username) {
+        return assignee;
+      }
+      
+     
+      const assigneeId = typeof assignee === 'string' ? assignee : assignee._id;
+      const user = allUsers.find(u => u._id === assigneeId);
+      
+      return user || { _id: assigneeId, username: 'Unknown User', email: 'No email' };
+    });
+  }, [card?.assignees, allUsers]);
+
   const filtered = useMemo(() => {
     if (!debounceQuery.trim()) return allUsers;
 
@@ -75,6 +97,11 @@ const AssignUserPanel = ({
         (u.email || "").toLowerCase().includes(q)
     );
   }, [allUsers, debounceQuery]);
+
+  // Create assignee IDs set for button logic
+  const assigneeIds = useMemo(() => {
+    return new Set(populatedAssignees.map(user => user._id));
+  }, [populatedAssignees]);
 
   const handleAssign = async (userId) => {
     if (!card) return;
@@ -87,6 +114,12 @@ const AssignUserPanel = ({
       if (data.success) {
         toast.success("Assigned!");
         onAssigned && onAssigned(card._id, data.assignees);
+        
+        // Refresh the card data
+        const cardRes = await axios.get(`${backendUrl}/api/cards/${card._id}`);
+        if (cardRes.data.success) {
+          setCurrentCard(cardRes.data.card);
+        }
       }
     } catch (error) {
       toast.error("Assign failed");
@@ -104,6 +137,12 @@ const AssignUserPanel = ({
       if (data.success) {
         toast.success("Removed");
         onRemoved && onRemoved(card._id, data.assignees);
+        
+        // Refresh the card data
+        const cardRes = await axios.get(`${backendUrl}/api/cards/${card._id}`);
+        if (cardRes.data.success) {
+          setCurrentCard(cardRes.data.card);
+        }
       }
     } catch (error) {
       toast.error("Remove failed");
@@ -111,8 +150,6 @@ const AssignUserPanel = ({
   };
 
   if (!open) return null;
-
-  const assigneeIds = new Set((card?.assignees || []).map((a) => a._id));
 
   return (
     <div className="fixed inset-0 z-[99999] flex pointer-events-none">
@@ -165,19 +202,19 @@ const AssignUserPanel = ({
 
         <div>
           <h4 className="text-xs font-semibold text-gray-500 uppercase mb-2 tracking-wide">
-            Assigned ({card?.assignees?.length || 0})
+            Assigned ({populatedAssignees.length || 0})
           </h4>
 
-          {card?.assignees?.length === 0 && (
+          {populatedAssignees.length === 0 && (
             <div className="text-sm text-gray-400 mb-4">
               No one is assigned yet.
             </div>
           )}
 
           <div className="space-y-2 mb-6">
-            {card?.assignees?.map((u) => (
+            {populatedAssignees.map((user) => (
               <div
-                key={u._id}
+                key={user._id}
                 className="
                   flex items-center justify-between 
                   p-2.5 rounded-md border border-gray-100 
@@ -187,21 +224,21 @@ const AssignUserPanel = ({
                 <div className="flex items-center gap-3">
                   <div
                     className="w-9 h-9 flex items-center justify-center rounded-full text-sm font-medium"
-                    style={{ background: getColor(u.username) }}
+                    style={{ background: getColor(user.username) }}
                   >
-                    {getInitials(u.username)}
+                    {getInitials(user.username)}
                   </div>
 
                   <div>
                     <div className="text-sm font-medium text-gray-900">
-                      {u.username}
+                      {user.username}
                     </div>
-                    <div className="text-xs text-gray-500">{u.email}</div>
+                    <div className="text-xs text-gray-500">{user.email}</div>
                   </div>
                 </div>
 
                 <button
-                  onClick={() => handleRemove(u._id)}
+                  onClick={() => handleRemove(user._id)}
                   className="
                     flex items-center gap-1.5 text-sm 
                     text-red-600 hover:text-red-700 p-1.5 
@@ -225,9 +262,9 @@ const AssignUserPanel = ({
           )}
 
           {!loading &&
-            filtered.map((u) => (
+            filtered.map((user) => (
               <div
-                key={u._id}
+                key={user._id}
                 className="
                   flex items-center justify-between 
                   p-2.5 rounded-md hover:bg-gray-50 transition
@@ -236,22 +273,22 @@ const AssignUserPanel = ({
                 <div className="flex items-center gap-3">
                   <div
                     className="w-9 h-9 flex items-center justify-center rounded-full text-sm font-medium"
-                    style={{ background: getColor(u.username) }}
+                    style={{ background: getColor(user.username) }}
                   >
-                    {getInitials(u.username)}
+                    {getInitials(user.username)}
                   </div>
 
                   <div>
                     <div className="text-sm font-medium text-gray-900">
-                      {u.username}
+                      {user.username}
                     </div>
-                    <div className="text-xs text-gray-500">{u.email}</div>
+                    <div className="text-xs text-gray-500">{user.email}</div>
                   </div>
                 </div>
 
-                {assigneeIds.has(u._id) ? (
+                {assigneeIds.has(user._id) ? (
                   <button
-                    onClick={() => handleRemove(u._id)}
+                    onClick={() => handleRemove(user._id)}
                     className="
                       flex items-center gap-1.5 text-sm 
                       text-red-600 hover:text-red-700 p-1.5 
@@ -262,7 +299,7 @@ const AssignUserPanel = ({
                   </button>
                 ) : (
                   <button
-                    onClick={() => handleAssign(u._id)}
+                    onClick={() => handleAssign(user._id)}
                     className="
                       flex items-center gap-1.5 px-3 py-1.5 
                       bg-indigo-600 text-white text-sm 
